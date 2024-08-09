@@ -64,7 +64,14 @@
         <p><a href="https://github.com/alexburrito">Alex Barreto</a></p>
 
         <h2>Introduction</h2>
-        <p>Welcome to the Google Earth Engine (GEE) Hydro Project. This is a set of data models and tools that operates within GEE to support geospatial hydrological data analyses. Our mission is to to streamline hydrological modeling within GEE.</p>
+        <p>Welcome to the Google Earth Engine (GEE) Hydro Project. This is a set of data models and tools that operates within GEE to support geospatial hydrological data analyses. Our mission is to streamline hydrological modeling within GEE by providing advanced tools for surface water flow analysis.</p>
+
+        <h2>About the D8 Algorithm</h2>
+        <p>The D8 algorithm is a widely used method in GIS for visualizing surface water flow across varied terrains. Developed through the work of pioneers like O’Callaghan and Mark (1984) and refined by Jenson and Domingue (1988), the D8 algorithm assigns each cell in a Digital Elevation Model (DEM) a single flow direction, based on the steepest downhill descent. This simplicity makes the D8 algorithm computationally efficient and broadly applicable in hydrological modeling.</p>
+        <p>However, the D8 algorithm has limitations in areas with flat or ambiguous slopes, where it may struggle to predict flow direction accurately. Alternative algorithms, such as the D-infinity (D∞) algorithm, have been developed to address these challenges by considering multiple flow directions per cell.</p>
+
+        <h2>Our Project: Bringing D8 to the Cloud with GEE</h2>
+        <p>Our project is focused on implementing the D8 algorithm within Google Earth Engine (GEE), leveraging its cloud-based platform to enhance the accessibility and efficiency of hydrological modeling. We utilize Shuttle Radar Topography Mission (SRTM) data provided by the World Wide Fund for Nature (WWF) through the HydroSHEDS dataset. By implementing the D8 algorithm using the Earth Engine JavaScript API, we aim to create tools for generating Flow Direction Rasters, Automatic Stream Delineation, Watershed Delineation, and other surface hydrology analyses directly within the GEE environment.</p>
 
         <h2>Flow Direction Legend</h2>
         <img src="FlowDirectionLegend.png" alt="Flow Direction Legend" class="responsive-image">
