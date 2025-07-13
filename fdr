@@ -1,0 +1,50 @@
+// Adding Data
+var elevation = ee.Image("WWF/HydroSHEDS/03VFDEM");  // HydroSHEDS elevation model
+var reference = ee.Image("WWF/HydroSHEDS/03DIR");  // HydroSHEDS flow direction
+
+// Define D8 flow direction algorithm function
+var D8Algorithm = function(elevation) {
+  // Get 3x3 neighborhood of each cell
+  var neighborhood = elevation.neighborhoodToBands(ee.Kernel.square(1));
+  
+  // Define the offset pattern for the 8 neighbors (clockwise starting from NW)
+  var neighborOffsets = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1],          [0, 1],
+    [1, -1], [1, 0],  [1, 1]
+  ];
+
+  // Define direction values for each neighbor (clockwise starting from NW)
+  var directionValues = [32, 64, 128, 16, 1, 8, 4, 2];
+
+  // Initialize direction and slope
+  var maxSlope = elevation.multiply(0).rename('maxSlope'); // Initialize maxSlope with 0s
+  var flowDirection = elevation.multiply(0).int8().rename('flowDirection'); // Placeholder for flow direction
+
+  for (var i = 0; i < 8; i++) {
+    var rowOffset = neighborOffsets[i][0];
+    var colOffset = neighborOffsets[i][1];
+    var neighbor = neighborhood.select('b1_' + rowOffset + '_' + colOffset);
+    var slope = elevation.subtract(neighbor); // Slope as the difference
+    var direction = ee.Image.constant(directionValues[i]);
+    
+    // Condition to replace the value only if current slope is the steepest
+    var replace = slope.gt(maxSlope);
+
+    // Update maxSlope and flowDirection using the mask
+    maxSlope = maxSlope.where(replace, slope);
+    flowDirection = flowDirection.where(replace, direction);
+  }
+
+  return flowDirection;
+};
+
+// Apply the D8 algorithm 
+var flowDirection = D8Algorithm(elevation);
+
+// Visualize the result
+Map.addLayer(flowDirection, {min: 0, max: 128, palette: ['blue', 'cyan', 'green', 'yellow', 'red', 'orange', 'purple', 'pink']}, 'Flow Direction');
+Map.addLayer(reference, {min: 0, max: 128, palette: ['blue', 'cyan', 'green', 'yellow', 'red', 'orange', 'purple', 'pink']}, 'Reference'); 
+
+// Display the map
+Map.centerObject(elevation, 10);
