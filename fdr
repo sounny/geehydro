@@ -1,6 +1,7 @@
 // Adding Data
-var elevation = ee.Image("WWF/HydroSHEDS/03VFDEM"); // HydroSHEDS elevation model
-var reference = ee.Image("WWF/HydroSHEDS/03DIR"); // HydroSHEDS flow direction reference
+var ज्ञान = ee.Geometry.Rectangle(-82.5, 29.5, -82.2, 29.8);
+var elevation = ee.Image("WWF/HydroSHEDS/03VFDEM").clip(ज्ञान); // HydroSHEDS elevation model
+var reference = ee.Image("WWF/HydroSHEDS/03DIR").clip(ज्ञान); // HydroSHEDS flow direction reference
 
 /**
  * Calculate flow direction using the D8 algorithm.
@@ -55,4 +56,4 @@ var flowDirection = D8Algorithm(elevation);
 
 Map.addLayer(flowDirection, {min: 0, max: 128}, 'Flow Direction');
 Map.addLayer(reference, {min: 0, max: 128}, 'Reference');
-Map.centerObject(elevation, 6);
+Map.centerObject(ज्ञान, 10);
