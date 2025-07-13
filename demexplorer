@@ -1,0 +1,467 @@
+var Copernicus = ee.ImageCollection("COPERNICUS/DEM/GLO30"),
+    SRTM = ee.Image("USGS/SRTMGL1_003"),
+    GTOPO30 = ee.Image("USGS/GTOPO30"),
+    HydroShed = ee.Image("WWF/HydroSHEDS/03CONDEM"),
+    Lidar = ee.ImageCollection("USGS/3DEP/1m"),
+    ROI = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-88.371875, 31.992351921516466],
+                  [-85.987109375, 25.121258320199114],
+                  [-78.7048010546875, 24.558862534368515],
+                  [-81.63359375, 31.07682857623016]]]),
+            {
+              "system:index": "0"
+            })]);
+            
+//var mapPanel = ui.Map();
+
+var selectedValue = '';
+var dataset;
+var elevation;
+var slope;
+var aspect;
+
+
+var allgeom = ROI.geometry();
+
+Lidar = Lidar.filterBounds(allgeom);
+Lidar = Lidar.mosaic();
+
+
+Copernicus = Copernicus.filterBounds(allgeom);
+Copernicus = Copernicus.mosaic();
+
+if(dataset == HydroShed){
+  print('Activate HydroShed');
+  elevation = dataset.select('b1');
+  }
+
+//create a function
+function changeLayers(mapPanel, selectedValue) {
+    mapPanel.layers().reset([]);
+ 
+    if(selectedValue == 'GTOPO30'){
+     
+      dataset = GTOPO30;
+       
+      print('Activate GTO');
+      elevation = dataset.select('elevation');
+      var elevationVis = {
+        min: -50.0,
+        max: 1500.0,
+        gamma: 2.0,
+      };
+
+      slope = ee.Terrain.slope(dataset);
+      aspect = ee.Terrain.aspect(dataset);
+      mapPanel.addLayer(elevation, elevationVis, 'elevation');
+      mapPanel.addLayer(slope, {min: 0, max :60}, 'slope', 0);
+      mapPanel.addLayer(aspect, {min:0, max:60}, 'aspect', 0);
+      
+      
+      
+    } else if(selectedValue == 'HydroShed'){
+    
+      dataset = HydroShed;
+      print('Activate HydroShed');
+      elevation = dataset.select('b1');
+      slope = ee.Terrain.slope(elevation);
+      aspect = ee.Terrain.aspect(elevation);
+      elevationVis = {
+        min: -50.0,
+        max: 3000.0,
+        gamma: 2.0,
+      };
+  
+  
+      mapPanel.addLayer(elevation, elevationVis, 'elevation');
+      mapPanel.addLayer(slope, {min: 0, max :60}, 'slope', 0);
+      mapPanel.addLayer(aspect, {min:0, max:60}, 'aspect', 0);
+    
+      
+    } else if(selectedValue == 'Lidar'){
+      
+      dataset = Lidar;
+      print('Activate Lidar');
+      
+      elevation = dataset.select('elevation');
+      elevationVis = {
+      min: -25,
+      max: 150,
+      palette: [
+        '3ae237', 'b5e22e', 'd6e21f', 'fff705', 'ffd611', 'ffb613', 'ff8b13',
+        'ff6e08', 'ff500d', 'ff0000', 'de0101', 'c21301', '0602ff', '235cb1',
+        '307ef3', '269db1', '30c8e2', '32d3ef', '3be285', '3ff38f', '86e26f'
+      ],
+      };
+      
+      mapPanel.addLayer(elevation, elevationVis, 'elevation');
+   
+    } else if(selectedValue == 'Copernicus'){
+      
+      dataset = Copernicus;
+       print('Activate Copernicus');
+      elevation = dataset.select('DEM');
+      elevationVis = {
+        min: -50.0,
+        max: 300.0,
+        gamma: 2.0,
+      };
+      
+      mapPanel.addLayer(elevation, elevationVis, 'elevation');
+      slope = ee.Terrain.slope(elevation);
+      aspect = ee.Terrain.aspect(elevation);
+      
+      
+    } else if(selectedValue == 'SRTM'){
+      
+      dataset = SRTM;
+      print('Activate SRTM');
+      elevation = dataset.select('elevation');
+      elevationVis = {
+        min: -50.0,
+        max: 3000.0,
+        gamma: 2.0,
+      };
+      slope = ee.Terrain.slope(dataset);
+      aspect = ee.Terrain.aspect(dataset);
+      
+      mapPanel.addLayer(elevation, elevationVis, 'elevation');
+      mapPanel.addLayer(slope, {min: 0, max :60}, 'slope', 0);
+      mapPanel.addLayer(aspect, {min:0, max:60}, 'aspect', 0);
+    
+      
+    } else {
+      console.log("Error in selection");
+  }
+}
+
+//Inspector panel
+var inspectorPanel = ui.Panel({style: {width: '30%'}});
+var intro = ui.Panel([
+  ui.Label({
+    value: 'DEM Inspector',
+    style: {fontSize: '20px', fontWeight: 'bold', position: 'top-center'}
+    
+  }),
+
+  
+  ui.Label('Click a location to inspect DEM.')
+  
+]);
+
+inspectorPanel.add(intro);
+
+var lon = ui.Label();
+var lat = ui.Label();
+var elev = ui.Label();
+var slo = ui.Label();
+var asp = ui.Label();
+
+inspectorPanel.add(ui.Panel([lon, lat], ui.Panel.Layout.flow('horizontal')));
+inspectorPanel.add(ui.Panel([elev], ui.Panel.Layout.flow('horizontal')));
+inspectorPanel.add(ui.Panel([slo], ui.Panel.Layout.flow('horizontal')))
+inspectorPanel.add(ui.Panel([asp], ui.Panel.Layout.flow('horizontal')))
+
+
+//Textboxes for longitude andl latitute user input
+var long = ui.Textbox({
+  placeholder: 'Enter longitude here...',
+  onChange: function(value) {
+    long.setValue(value);
+    return(value);
+  }
+});
+
+
+var lati = ui.Textbox({
+  placeholder: 'Enter latitude here...',
+  onChange: function(value) {
+    lati.setValue(value);
+    return(value);
+  }
+});
+
+
+var Lo;
+var La;
+
+var button = ui.Button({
+  label: 'Go to Location',
+  onClick: function() {
+    Lo = parseFloat(long.getValue());
+    La = parseFloat(lati.getValue());
+
+    var point = ee.Geometry.Point([Lo, La]);
+    
+    lon.setValue('Longitute: ' + Lo.toFixed(4));
+    lat.setValue('Latitude: ' + La.toFixed(4));
+
+    var elevSample = 0;
+    var slopeSample = 0;
+    var aspectSample = 0;
+
+    if(dataset == HydroShed){
+      print('hydro dataset');
+      elevSample = elevation.sample(point, 30).first().get("b1");
+      slopeSample = slope.sample(point, 30).first().get("slope");
+      aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+    
+  if(dataset == GTOPO30){
+      print('GTO dataset');
+      print(elevation);
+      elevSample = elevation.sample(point, 30).first().get("elevation");
+      slopeSample = slope.sample(point, 30).first().get("slope");
+      aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+  
+  if(dataset == Lidar){
+      print('Lidar dataset');
+      elevSample = Lidar.sample(point,30).first().get("elevation");
+      // slopeSample = slope.sample(point, 30).first().get("slope");
+      // aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      //slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      //asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+  
+  if(dataset == Copernicus){
+      print('Copernicus dataset');
+      print(elevation);
+      elevSample = elevation.sample(point, 30).first().get("DEM");
+      // slopeSample = slope.sample(point, 30).first().get("slope");
+      // aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      //slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      //asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+  
+  if(dataset == SRTM){
+      print('SRTM dataset');
+      print(elevation);
+      elevSample = elevation.sample(point, 30).first().get("elevation");
+      slopeSample = slope.sample(point, 30).first().get("slope");
+      aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+    
+    mapPanel.setCenter(Lo, La, 10);
+  }
+});
+
+
+//mapPanel.add(long);
+long.style().set({
+  width: '175px',
+  position: 'top-left'
+});
+//mapPanel.add(lati);
+lati.style().set({
+  width: '175px',
+  position: 'top-left'
+});
+button.style().set({
+  width: '175px',
+  position: 'top-left'
+});
+//mapPanel.add(button);
+
+
+//Function to store coordinates and data of location
+var storeCoordinates = function (coords) {
+  // Update the lon/lat panel with values from the click event.
+  lon.setValue('Longitute: ' + coords.lon.toFixed(4));
+  lat.setValue('Latitude: ' + coords.lat.toFixed(4));
+
+  // Add a dot for the point clicked on.
+  var point = ee.Geometry.Point([coords.lon, coords.lat]);
+  var dot = ui.Map.Layer(point, {color: 'orange'}, 'clicked location');
+  
+  // Add the dot as the second layer, so it shows up on top of the composite.
+  mapPanel.layers().set(4, dot);
+  console.log(coords.lon);
+  console.log(coords.lat);
+  
+  //Get elevation data at coordinate
+  // var elevSample = elevation.sample(point, 30).first().get("b1");
+  // var slopeSample = slope.sample(point, 30).first().get("slope");
+  // var aspectSample = aspect.sample(point, 30).first().get("aspect");
+  
+  var elevSample = 0;
+  var slopeSample = 0;
+  var aspectSample = 0;
+
+  if(dataset == HydroShed){
+      print('hydro dataset');
+      elevSample = elevation.sample(point, 30).first().get("b1");
+      slopeSample = slope.sample(point, 30).first().get("slope");
+      aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+    
+  if(dataset == GTOPO30){
+      print('GTO dataset');
+      print(elevation);
+      elevSample = elevation.sample(point, 30).first().get("elevation");
+      slopeSample = slope.sample(point, 30).first().get("slope");
+      aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+  
+  if(dataset == Lidar){
+      print('Lidar dataset');
+      elevSample = Lidar.sample(point,30).first().get("elevation");
+      // slopeSample = slope.sample(point, 30).first().get("slope");
+      // aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      //slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      //asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+  
+  if(dataset == Copernicus){
+      print('Copernicus dataset');
+      print(elevation);
+      elevSample = elevation.sample(point, 30).first().get("DEM");
+      //slopeSample = slope.sample(point, 30).first().get("slope");
+      //aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      //slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      //asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+  
+  if(dataset == SRTM){
+      print('SRTM dataset');
+      print(elevation);
+      elevSample = elevation.sample(point, 30).first().get("elevation");
+      slopeSample = slope.sample(point, 30).first().get("slope");
+      aspectSample = aspect.sample(point, 30).first().get("aspect");
+      elev.setValue('Elevation: ' + elevSample.getInfo().toFixed(2) + " meters");
+      slo.setValue('Slope: ' + slopeSample.getInfo().toFixed(2) + " degrees");
+      asp.setValue('Aspect: ' + aspectSample.getInfo().toFixed(2) + " degrees");
+  }
+  
+
+  
+};
+
+
+// // Configure the map.
+// mapPanel.onClick(storeCoordinates);
+// mapPanel.style().set('cursor', 'crosshair');
+
+
+
+/*
+* Initialize the app
+*/
+
+// Replace the root with a SplitPanel that contains the inspector and map.
+var panelNames = [
+    'MODIS active fires', // panel 0 - top left
+    'MODIS burned area', // panel 1 - bottom left
+    'GOES active fires', // panel 2 - top right
+    'Reference' // panel 3 - bottom right
+];
+
+// Create a map for each DEM option.
+
+var datasetName;
+var maps = [];
+panelNames.forEach(function(name, index) {
+    var mapPanel = ui.Map();
+    
+    
+    var s = ui.Select({
+        placeholder: 'Select DEM',
+        items: [
+          {value: 'HydroShed', label: 'HydroShed'}, 
+          {value: 'GTOPO30', label: 'GTOPO30'},
+          {value: 'Lidar', label: 'Florida Lidar'},
+          {value: 'Copernicus', label: 'Copernicus'},
+          {value: 'SRTM', label: 'SRTM'}
+        ],
+        onChange: function(value) {
+        // Save the selected value to the variable
+        selectedValue = value;
+        changeLayers(mapPanel, selectedValue);
+      
+      }
+});
+    mapPanel.setControlVisibility({
+        fullscreenControl: false
+    });
+
+    if (index === 0) {
+      
+      mapPanel.add(s);
+        
+    }
+    if (index == 1) {
+      mapPanel.add(s);
+    
+    }
+    if (index == 2) {
+      mapPanel.add(s);
+    }
+    if (index == 3) {
+      mapPanel.add(s);
+        // map.addLayer(reference, {}, 'Reference');
+        // map.add(ui.Label(panelNames[3], {
+        //     fontWeight: 'bold',
+        //     position: 'bottom-left'
+        // }));
+    }
+    maps.push(mapPanel);
+});
+
+var linker = ui.Map.Linker(maps);
+
+// Make a label for the main title of the app.
+var title = ui.Label(
+    'Digital Elevation Models in Google Earth Engine', {
+        stretch: 'horizontal',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: '24px'
+    });
+
+// Define a map grid of 2x2 sub panels.
+var mapGrid = ui.Panel(
+    [
+        ui.Panel([maps[0], maps[1]], null, {
+            stretch: 'both'
+        }),
+        ui.Panel([maps[2], maps[3]], null, {
+            stretch: 'both'
+        })
+    ],
+    ui.Panel.Layout.Flow('horizontal'), {
+        stretch: 'both'
+    }
+);
+
+var zoom = 7;
+var lon2 = -82;
+var lat2 = 27;
+//maps[0].setCenter(lon2, lat2, zoom);
+
+// Add the maps and title to the ui.root().
+ui.root.widgets().reset([title, mapGrid]);
+ui.root.setLayout(ui.Panel.Layout.Flow('vertical'))

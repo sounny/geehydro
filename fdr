@@ -1,6 +1,18 @@
 // Adding Data
-var elevation = ee.Image("WWF/HydroSHEDS/03VFDEM"); // HydroSHEDS elevation model
+// HydroSHEDS elevation reference is now selected via UI
 var reference = ee.Image("WWF/HydroSHEDS/03DIR"); // HydroSHEDS flow direction reference
+
+// DEM selection options
+var demList = {
+  'HydroSHEDS 03VFDEM': ee.Image("WWF/HydroSHEDS/03VFDEM"),
+  'JAXA AW3D30': ee.ImageCollection("JAXA/ALOS/AW3D30/V4_1").mosaic(),
+  'NASA ASTER GED': ee.Image("NASA/ASTER_GED/AG100_003"),
+  'Copernicus GLO-30': ee.ImageCollection("COPERNICUS/DEM/GLO30").mosaic(),
+  'NOAA ETOPO1': ee.Image("NOAA/NGDC/ETOPO1"),
+  'USGS GTOPO30': ee.Image("USGS/GTOPO30"),
+  'SRTM topoDiversity': ee.Image("CSP/ERGo/1_0/Global/SRTM_topoDiversity"),
+  'USGS SRTMGL1': ee.Image("USGS/SRTMGL1_003")
+};
 
 /**
  * Calculate flow direction using the D8 algorithm.
@@ -10,7 +22,7 @@ var reference = ee.Image("WWF/HydroSHEDS/03DIR"); // HydroSHEDS flow direction r
  *   16 = W, 32 = NW, 64 = N, 128 = NE
  * Cells with no lower neighbor are set to 0.
  */
-var D8Algorithm = function(dem) {
+function D8Algorithm(dem) {
   var band = ee.String(dem.bandNames().get(0));
   // Extract a 3x3 neighborhood around each pixel.
   var neighborhood = dem.neighborhoodToBands(ee.Kernel.square(1));
@@ -25,7 +37,7 @@ var D8Algorithm = function(dem) {
   // Direction values matching the offsets above.
   var directions = [32, 64, 128, 16, 1, 8, 4, 2];
   // Distance to each neighbor used in slope calculation.
-  var distances = [Math.SQRT2, 1, Math.SQRT2, 1, 1, Math.SQRT2, 1, Math.SQRT2];
+  var distances = [Math.sqrt(2), 1, Math.sqrt(2), 1, 1, Math.sqrt(2), 1, Math.sqrt(2)];
 
   var maxSlope = ee.Image(-9999);
   var flowDir = ee.Image(0).byte();
@@ -33,12 +45,8 @@ var D8Algorithm = function(dem) {
   for (var i = 0; i < 8; i++) {
     var row = offsets[i][0];
     var col = offsets[i][1];
-    // Convert the numeric row/col indices to strings so they can be
-    // concatenated with the band name. Without this conversion, the
-    // String.cat operation throws a type error in Earth Engine.
-    var rowStr = ee.Number(row).format();
-    var colStr = ee.Number(col).format();
-    var neighbor = neighborhood.select(band.cat('_').cat(rowStr).cat('_').cat(colStr));
+    var bandName = band.cat('_').cat(ee.Number(row).format('%d')).cat('_').cat(ee.Number(col).format('%d'));
+    var neighbor = neighborhood.select(bandName);
     var slope = center.subtract(neighbor).divide(distances[i]);
     var dirImg = ee.Image.constant(directions[i]).byte();
     // Update if this neighbor has the steepest downward slope so far
@@ -49,10 +57,72 @@ var D8Algorithm = function(dem) {
 
   // Keep cells with no downhill neighbor set to 0 instead of masking
   return flowDir.rename('flowDirection');
-};
+}
 
-var flowDirection = D8Algorithm(elevation);
+// Create selector UI
+var demSelect = ui.Select({
+  items: Object.keys(demList),
+  value: 'HydroSHEDS 03VFDEM',
+  onChange: updateMap
+});
 
-Map.addLayer(flowDirection, {min: 0, max: 128}, 'Flow Direction');
-Map.addLayer(reference, {min: 0, max: 128}, 'Reference');
-Map.centerObject(elevation, 6);
+// Create a panel for the inspector
+var inspectorPanel = ui.Panel({style: {width: '300px'}});
+var calculatedLabel = ui.Label('Calculated Flow Direction:');
+var referenceLabel = ui.Label('Reference Flow Direction:');
+inspectorPanel.add(ui.Label('Click on the map to get flow direction values.'));
+inspectorPanel.add(calculatedLabel);
+inspectorPanel.add(referenceLabel);
+
+// Add the UI to the root
+ui.root.clear();
+var mainPanel = ui.Panel({
+  widgets: [
+    ui.Panel([ui.Label('Select DEM:'), demSelect], ui.Panel.Layout.flow('horizontal')),
+    inspectorPanel
+  ],
+  layout: ui.Panel.Layout.flow('vertical')
+});
+ui.root.add(mainPanel);
+
+// Function to update map layers based on selection
+function updateMap(selected) {
+  var elevation = demList[selected];
+  var flowDirection = D8Algorithm(elevation);
+  Map.clear();
+  Map.addLayer(reference, {min: 0, max: 128}, 'Reference');
+  Map.addLayer(flowDirection, {min: 0, max: 128}, 'Flow Direction');
+  Map.centerObject(elevation, 6);
+  
+  // Set up the click handler on the map
+  Map.onClick(function(coords) {
+    var point = ee.Geometry.Point(coords.lon, coords.lat);
+    calculatedLabel.setValue('Calculated Flow Direction: loading...');
+    referenceLabel.setValue('Reference Flow Direction: loading...');
+    
+    var calculatedValue = flowDirection.reduceRegion({
+      reducer: ee.Reducer.first(),
+      geometry: point,
+      scale: 30
+    }).get('flowDirection');
+    
+    var referenceValue = reference.reduceRegion({
+      reducer: ee.Reducer.first(),
+      geometry: point,
+      scale: 30
+    }).get('b1');
+    
+    calculatedValue.evaluate(function(result) {
+      var value = result ? result : 'No data';
+      calculatedLabel.setValue('Calculated Flow Direction: ' + value);
+    });
+    
+    referenceValue.evaluate(function(result) {
+      var value = result ? result : 'No data';
+      referenceLabel.setValue('Reference Flow Direction: ' + value);
+    });
+  });
+}
+
+// Initial render
+updateMap(demSelect.getValue());
