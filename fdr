@@ -41,16 +41,18 @@ var D8Algorithm = function(dem) {
     var neighbor = neighborhood.select(band.cat('_').cat(rowStr).cat('_').cat(colStr));
     var slope = center.subtract(neighbor).divide(distances[i]);
     var dirImg = ee.Image.constant(directions[i]).byte();
-    var replace = slope.gt(maxSlope);
+    // Update if this neighbor has the steepest downward slope so far
+    var replace = slope.gt(maxSlope).and(slope.gt(0));
     maxSlope = maxSlope.where(replace, slope);
     flowDir = flowDir.where(replace, dirImg);
   }
 
-  return flowDir.updateMask(maxSlope.gt(0)).rename('flowDirection');
+  // Keep cells with no downhill neighbor set to 0 instead of masking
+  return flowDir.rename('flowDirection');
 };
 
 var flowDirection = D8Algorithm(elevation);
 
-Map.addLayer(flowDirection, {min: 1, max: 128, palette: ['#ff0000']}, 'Flow Direction');
-Map.addLayer(reference, {min: 1, max: 128, palette: ['#0000ff']}, 'Reference');
+Map.addLayer(flowDirection, {min: 0, max: 128}, 'Flow Direction');
+Map.addLayer(reference, {min: 0, max: 128}, 'Reference');
 Map.centerObject(elevation, 6);
