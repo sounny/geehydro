@@ -50,6 +50,7 @@ var D8Algorithm = function(dem) {
     var replace = slope.gt(maxSlope).and(slope.gt(0));
     maxSlope = maxSlope.where(replace, slope);
     flowDir = flowDir.where(replace, dirImg);
+    print('Iteration ' + i, 'slope', slope, 'flowDir', flowDir);
   }
 
   // Keep cells with no downhill neighbor set to 0 instead of masking
