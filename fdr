@@ -9,44 +9,57 @@ var reference = ee.Image("WWF/HydroSHEDS/03DIR").clip(GainesvilleAOI);
 
 /**
  * Calculate flow direction using the D8 algorithm.
- *
- * This function calculates the flow direction for each cell in a Digital
- * Elevation Model (DEM) using the D8 algorithm. Each cell drains to the
- * neighboring cell with the steepest downward slope.
- *
- * Direction codes follow the standard D8 clockwise encoding:
- *   1 = E, 2 = SE, 4 = S, 8 = SW, 16 = W, 32 = NW, 64 = N, 128 = NE
- *
+ * Each cell drains to the neighboring cell with the steepest downward slope.
+ * Direction codes follow the standard D8 clockwise encoding starting at east.
+ *   1 = E, 2 = SE, 4 = S, 8 = SW,
+ *   16 = W, 32 = NW, 64 = N, 128 = NE
  * Cells with no lower neighbor are set to 0.
- *
- * @param {ee.Image} dem The Digital Elevation Model.
- * @return {ee.Image} An image with the flow direction for each cell.
  */
-var calculateFlowDirectionD8 = function(dem) {
-  // Define the 8 directions for the D8 algorithm.
-  var directions = ee.Image.constant([128, 1, 2, 4, 8, 16, 32, 64]).byte();
+var D8Algorithm = function(dem) {
+  var band = ee.String(dem.bandNames().get(0));
+  // Extract a 3x3 neighborhood around each pixel.
+  var neighborhood = dem.neighborhoodToBands(ee.Kernel.square(1));
+  var center = neighborhood.select(band.cat('_0_0'));
 
-  // Calculate the slope to each of the 8 neighbors.
-  var slope = ee.Terrain.slope(dem);
+  // Neighbor offsets (row, col) clockwise from NW.
+  var offsets = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1],            [0, 1],
+    [1, -1], [1, 0],  [1, 1]
+  ];
+  // Direction values matching the offsets above.
+  var directions = [32, 64, 128, 16, 1, 8, 4, 2];
+  // Distance to each neighbor used in slope calculation.
+  var distances = [Math.SQRT2, 1, Math.SQRT2, 1, 1, Math.SQRT2, 1, Math.SQRT2];
 
-  // Find the direction with the steepest downward slope.
-  var flowDirection = slope.multiply(-1).atan2(slope).multiply(180 / Math.PI).add(180);
+  var maxSlope = ee.Image(-9999);
+  var flowDir = ee.Image(0).byte();
 
-  // Convert the continuous flow direction to D8 directions.
-  var d8 = flowDirection.divide(45).round().mod(8);
+  for (var i = 0; i < 8; i++) {
+    var row = offsets[i][0];
+    var col = offsets[i][1];
+    // Convert the numeric row/col indices to strings so they can be
+    // concatenated with the band name. Without this conversion, the
+    // String.cat operation throws a type error in Earth Engine.
+    var rowStr = ee.Number(row).format();
+    var colStr = ee.Number(col).format();
+    var neighbor = neighborhood.select(band.cat('_').cat(rowStr).cat('_').cat(colStr));
+    var slope = center.subtract(neighbor).divide(distances[i]);
+    var dirImg = ee.Image.constant(directions[i]).byte();
+    // Update if this neighbor has the steepest downward slope so far
+    var replace = slope.gt(maxSlope).and(slope.gt(0));
+    maxSlope = maxSlope.where(replace, slope);
+    flowDir = flowDir.where(replace, dirImg);
+  }
 
-  // Encode the D8 directions.
-  return directions.slice(d8, 1, 2).rename('flowDirection');
+  // Keep cells with no downhill neighbor set to 0 instead of masking
+  return flowDir.rename('flowDirection');
 };
 
-// Calculate the flow direction using the D8 algorithm.
-var flowDirection = calculateFlowDirectionD8(elevation);
+var flowDirection = D8Algorithm(elevation);
 
-// Add the flow direction and reference layers to the map.
-Map.addLayer(flowDirection, {min: 1, max: 128, palette: [
-  '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff', '#ffffff', '#000000'
-]}, 'Flow Direction');
-Map.addLayer(reference, {min: 1, max: 128}, 'Reference');
+Map.addLayer(flowDirection, {min: 0, max: 128}, 'Flow Direction');
+Map.addLayer(reference, {min: 0, max: 128}, 'Reference');
 
 // Center the map on the AOI.
 Map.centerObject(GainesvilleAOI, 10);
