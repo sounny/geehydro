@@ -33,7 +33,12 @@ var D8Algorithm = function(dem) {
   for (var i = 0; i < 8; i++) {
     var row = offsets[i][0];
     var col = offsets[i][1];
-    var neighbor = neighborhood.select(band.cat('_').cat(row).cat('_').cat(col));
+    // Convert the numeric row/col indices to strings so they can be
+    // concatenated with the band name. Without this conversion, the
+    // String.cat operation throws a type error in Earth Engine.
+    var rowStr = ee.Number(row).format();
+    var colStr = ee.Number(col).format();
+    var neighbor = neighborhood.select(band.cat('_').cat(rowStr).cat('_').cat(colStr));
     var slope = center.subtract(neighbor).divide(distances[i]);
     var dirImg = ee.Image.constant(directions[i]).byte();
     var replace = slope.gt(maxSlope);
