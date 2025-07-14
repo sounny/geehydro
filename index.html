@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GEE Hydro Project</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-DGmgPTlOjBrIMC/uFZdQN8WoUwW1OONwG0NfyZH1xmwhu1eyVwDRKCVh0b07XHtcwPa5RWPLXx0lE+Ku0vLw8w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" href="hydrogeelogo.png" type="image/png">
     <style>
         .title-logo {
@@ -16,6 +17,13 @@
             max-width: 50px;
             height: auto;
             margin-right: 10px;
+        }
+        .tool-icons a {
+            color: inherit;
+            text-decoration: none;
+        }
+        .tool-icons i {
+            font-size: 2rem;
         }
     </style>
 </head>
@@ -52,6 +60,28 @@
             <img src="hydrogeelogo.png" alt="Hydro GEE Logo">
             <h1>Google Earth Engine Hydro Project</h1>
         </div>
+        <div class="tool-icons d-flex justify-content-center mb-4">
+            <div class="text-center mx-3">
+                <a href="https://sounny.users.earthengine.app/view/dem-inspector">
+                    <i class="fas fa-info-circle"></i>
+                    <div>DEM Inspector</div>
+                </a>
+            </div>
+            <div class="text-center mx-3">
+                <a href="https://sounny.users.earthengine.app/view/fdr">
+                    <i class="fas fa-arrows-alt"></i>
+                    <div>Flow Direction Raster</div>
+                </a>
+                <div><a href="https://github.com/sounny/geehydro/blob/main/fdr">code</a></div>
+            </div>
+            <div class="text-center mx-3">
+                <a href="https://sounny.users.earthengine.app/view/dem-explorer">
+                    <i class="fas fa-compass"></i>
+                    <div>DEM Explorer</div>
+                </a>
+                <div><a href="https://github.com/sounny/geehydro/blob/main/demexplorer">code</a></div>
+            </div>
+        </div>
 
         <h2>Researchers</h2>
         <p><a href="https://sounny.github.io/">Moulay Anwar Sounny-Slitine, PhD</a></p>
@@ -69,19 +99,7 @@
         <p>Our project is focused on implementing the D8 algorithm within Google Earth Engine (GEE), leveraging its cloud-based platform to enhance the accessibility and efficiency of hydrological modeling. We utilize Shuttle Radar Topography Mission (SRTM) data provided by the World Wide Fund for Nature (WWF) through the HydroSHEDS dataset. By implementing the D8 algorithm using the Earth Engine JavaScript API, we aim to create tools for generating Flow Direction Rasters, Automatic Stream Delineation, Watershed Delineation, and other surface hydrology analyses directly within the GEE environment.</p>
 
         <h2>Flow Direction Legend</h2>
-        <img src="FlowDirectionLegend.png" alt="Flow Direction Legend" class="img-fluid">
-
-        <h2>Datasets</h2>
-        <ul>
-            <li>Datasets (Coming Soon)</li>
-        </ul>
-
-        <h2>Tools</h2>
-        <ul>
-            <li><a href="https://sounny.users.earthengine.app/view/dem-inspector">DEM Inspector</a></li>
-            <li><a href="https://sounny.users.earthengine.app/view/fdr">Flow Direction Raster</a></li>
-            <li><a href="https://sounny.users.earthengine.app/view/dem-explorer">DEM Explorer</a></li>
-        </ul>
+        <img src="FlowDirectionLegend.png" alt="Flow Direction Legend" class="img-fluid" style="max-width:200px;">
 
         <h2>Findings</h2>
         <ul>
