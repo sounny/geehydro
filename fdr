@@ -1,43 +1,49 @@
-// Adding Data
-// HydroSHEDS elevation reference is now selected via UI
-var reference = ee.Image("WWF/HydroSHEDS/03DIR"); // HydroSHEDS flow direction reference
+// Earth Engine D8 flow direction demo with a small floating UI (does not cover map)
 
-// DEM selection options
+// Reference flow direction (HydroSHEDS D8 encoding)
+var reference = ee.Image('WWF/HydroSHEDS/03DIR'); // values: 0,1,2,4,8,16,32,64,128
+
+// DEM options (first band used)
 var demList = {
-  'HydroSHEDS 03VFDEM': ee.Image("WWF/HydroSHEDS/03VFDEM"),
-  'JAXA AW3D30': ee.ImageCollection("JAXA/ALOS/AW3D30/V4_1").mosaic(),
-  'NASA ASTER GED': ee.Image("NASA/ASTER_GED/AG100_003"),
-  'Copernicus GLO-30': ee.ImageCollection("COPERNICUS/DEM/GLO30").mosaic(),
-  'NOAA ETOPO1': ee.Image("NOAA/NGDC/ETOPO1"),
-  'USGS GTOPO30': ee.Image("USGS/GTOPO30"),
-  'SRTM topoDiversity': ee.Image("CSP/ERGo/1_0/Global/SRTM_topoDiversity"),
-  'USGS SRTMGL1': ee.Image("USGS/SRTMGL1_003")
+  'HydroSHEDS 03VFDEM': ee.Image('WWF/HydroSHEDS/03VFDEM'),
+  'JAXA AW3D30 (mosaic)': ee.ImageCollection('JAXA/ALOS/AW3D30/V4_1').mosaic(),
+  'NASA ASTER GED': ee.Image('NASA/ASTER_GED/AG100_003'),
+  'Copernicus GLO-30 (mosaic)': ee.ImageCollection('COPERNICUS/DEM/GLO30').mosaic(),
+  'USGS SRTMGL1': ee.Image('USGS/SRTMGL1_003'),
+  'USGS GTOPO30': ee.Image('USGS/GTOPO30'),
+  'NOAA ETOPO1': ee.Image('NOAA/NGDC/ETOPO1')
+  // Note: CSP/ERGo SRTM_topoDiversity is not an elevation; omitted for D8.
 };
 
-/**
- * Calculate flow direction using the D8 algorithm.
- * Each cell drains to the neighboring cell with the steepest downward slope.
- * Direction codes follow the standard D8 clockwise encoding starting at east.
- *   1 = E, 2 = SE, 4 = S, 8 = SW,
- *   16 = W, 32 = NW, 64 = N, 128 = NE
- * Cells with no lower neighbor are set to 0.
- */
+// D8 direction palette/indexing
+var dirValues = [0, 1, 2, 4, 8, 16, 32, 64, 128];
+var dirIdx    = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+var dirPalette = [
+  '888888', // 0 = flat/sink/no downhill
+  'ff0000', // 1  = E
+  'ff7f00', // 2  = SE
+  'ffff00', // 4  = S
+  '00ff00', // 8  = SW
+  '00ffff', // 16 = W
+  '0000ff', // 32 = NW
+  '7f00ff', // 64 = N
+  'ff00ff'  // 128 = NE
+];
+
+// D8 flow direction from a single-band DEM.
+// Returns byte image with D8 codes (0,1,2,4,8,16,32,64,128)
 function D8Algorithm(dem) {
   var band = ee.String(dem.bandNames().get(0));
-  // Extract a 3x3 neighborhood around each pixel.
   var neighborhood = dem.neighborhoodToBands(ee.Kernel.square(1));
   var center = neighborhood.select(band.cat('_0_0'));
 
-  // Neighbor offsets (row, col) clockwise from NW.
   var offsets = [
     [-1, -1], [-1, 0], [-1, 1],
-    [0, -1],            [0, 1],
-    [1, -1], [1, 0],  [1, 1]
+    [ 0, -1],           [ 0, 1],
+    [ 1, -1], [ 1, 0],  [ 1, 1]
   ];
-  // Direction values matching the offsets above.
   var directions = [32, 64, 128, 16, 1, 8, 4, 2];
-  // Distance to each neighbor used in slope calculation.
-  var distances = [Math.sqrt(2), 1, Math.sqrt(2), 1, 1, Math.sqrt(2), 1, Math.sqrt(2)];
+  var distances = [Math.SQRT2, 1, Math.SQRT2, 1, 1, Math.SQRT2, 1, Math.SQRT2];
 
   var maxSlope = ee.Image(-9999);
   var flowDir = ee.Image(0).byte();
@@ -49,80 +55,116 @@ function D8Algorithm(dem) {
     var neighbor = neighborhood.select(bandName);
     var slope = center.subtract(neighbor).divide(distances[i]);
     var dirImg = ee.Image.constant(directions[i]).byte();
-    // Update if this neighbor has the steepest downward slope so far
     var replace = slope.gt(maxSlope).and(slope.gt(0));
     maxSlope = maxSlope.where(replace, slope);
     flowDir = flowDir.where(replace, dirImg);
   }
-
-  // Keep cells with no downhill neighbor set to 0 instead of masking
   return flowDir.rename('flowDirection');
 }
 
-// Create selector UI
+// UI: selector and inspector (floating, top-right, small)
+var demNames = Object.keys(demList);
 var demSelect = ui.Select({
-  items: Object.keys(demList),
-  value: 'HydroSHEDS 03VFDEM',
-  onChange: updateMap
+  items: demNames,
+  value: demNames[0]
 });
 
-// Create a panel for the inspector
-var inspectorPanel = ui.Panel({style: {width: '300px'}});
-var calculatedLabel = ui.Label('Calculated Flow Direction:');
-var referenceLabel = ui.Label('Reference Flow Direction:');
-inspectorPanel.add(ui.Label('Click on the map to get flow direction values.'));
-inspectorPanel.add(calculatedLabel);
-inspectorPanel.add(referenceLabel);
+var infoLabel = ui.Label('Click the map to inspect D8 values.');
+var calcLabel = ui.Label('Calculated Flow Direction:');
+var refLabel  = ui.Label('Reference Flow Direction:');
 
-// Add the UI to the root
-ui.root.clear();
-var mainPanel = ui.Panel({
+var content = ui.Panel({
   widgets: [
     ui.Panel([ui.Label('Select DEM:'), demSelect], ui.Panel.Layout.flow('horizontal')),
-    inspectorPanel
+    infoLabel,
+    calcLabel,
+    refLabel
   ],
   layout: ui.Panel.Layout.flow('vertical')
 });
-ui.root.add(mainPanel);
 
-// Function to update map layers based on selection
-function updateMap(selected) {
-  var elevation = demList[selected];
-  var flowDirection = D8Algorithm(elevation);
-  Map.clear();
-  Map.addLayer(reference, {min: 0, max: 128}, 'Reference');
-  Map.addLayer(flowDirection, {min: 0, max: 128}, 'Flow Direction');
-  Map.centerObject(elevation, 6);
-  
-  // Set up the click handler on the map
-  Map.onClick(function(coords) {
-    var point = ee.Geometry.Point(coords.lon, coords.lat);
-    calculatedLabel.setValue('Calculated Flow Direction: loading...');
-    referenceLabel.setValue('Reference Flow Direction: loading...');
-    
-    var calculatedValue = flowDirection.reduceRegion({
-      reducer: ee.Reducer.first(),
-      geometry: point,
-      scale: 30
-    }).get('flowDirection');
-    
-    var referenceValue = reference.reduceRegion({
-      reducer: ee.Reducer.first(),
-      geometry: point,
-      scale: 30
-    }).get('b1');
-    
-    calculatedValue.evaluate(function(result) {
-      var value = result ? result : 'No data';
-      calculatedLabel.setValue('Calculated Flow Direction: ' + value);
-    });
-    
-    referenceValue.evaluate(function(result) {
-      var value = result ? result : 'No data';
-      referenceLabel.setValue('Reference Flow Direction: ' + value);
-    });
+// Simple collapse/expand
+var collapsed = false;
+var toggleBtn = ui.Button({
+  label: 'Hide',
+  onClick: function() {
+    collapsed = !collapsed;
+    content.style().set('shown', !collapsed);
+    toggleBtn.setLabel(collapsed ? 'Show' : 'Hide');
+  },
+  style: {stretch: 'horizontal'}
+});
+
+var controlPanel = ui.Panel({
+  widgets: [ui.Label('D8 Flow Direction', {fontWeight: 'bold'}), toggleBtn, content],
+  style: {
+    position: 'top-right',
+    padding: '8px',
+    width: '300px',
+    backgroundColor: 'rgba(255,255,255,0.9)'
+  }
+});
+
+// Add floating panel without clearing the root so the map stays visible
+ui.root.add(controlPanel);
+
+Map.style().set('cursor', 'crosshair');
+
+// Global state to avoid stacking multiple click handlers
+var state = {
+  elevation: null,
+  flowDirection: null,
+  nativeScale: null
+};
+
+// One-time click handler uses current state
+Map.onClick(function(coords) {
+  if (!state.flowDirection) return;
+  var pt = ee.Geometry.Point([coords.lon, coords.lat]);
+  calcLabel.setValue('Calculated Flow Direction: loading...');
+  refLabel.setValue('Reference Flow Direction: loading...');
+
+  var calc = state.flowDirection.reduceRegion({
+    reducer: ee.Reducer.first(),
+    geometry: pt,
+    scale: state.nativeScale,
+    bestEffort: true
+  }).get('flowDirection');
+
+  var ref = reference.reduceRegion({
+    reducer: ee.Reducer.first(),
+    geometry: pt,
+    scale: state.nativeScale,
+    bestEffort: true
+  }).get('b1');
+
+  calc.evaluate(function(v) {
+    calcLabel.setValue('Calculated Flow Direction: ' + ((v === null || v === undefined) ? 'No data' : v));
   });
+  ref.evaluate(function(v) {
+    refLabel.setValue('Reference Flow Direction: ' + ((v === null || v === undefined) ? 'No data' : v));
+  });
+});
+
+// Update map with selected DEM
+function updateMap(name) {
+  var elevation = demList[name];
+  var flowDirection = D8Algorithm(elevation);
+  var nativeScale = elevation.projection().nominalScale();
+
+  state.elevation = elevation;
+  state.flowDirection = flowDirection;
+  state.nativeScale = nativeScale;
+
+  var flowDirIdx = flowDirection.remap(dirValues, dirIdx).rename('flowDirIdx');
+  var refIdx = reference.remap(dirValues, dirIdx).rename('refIdx');
+
+  Map.clear();
+  Map.addLayer(refIdx, {min: 0, max: 8, palette: dirPalette}, 'Reference (HydroSHEDS D8)');
+  Map.addLayer(flowDirIdx, {min: 0, max: 8, palette: dirPalette}, 'Computed D8 (' + name + ')');
+  Map.centerObject(elevation, 6);
 }
 
-// Initial render
+// Wire up the selector and render
+demSelect.onChange(updateMap);
 updateMap(demSelect.getValue());
