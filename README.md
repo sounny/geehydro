@@ -13,6 +13,10 @@ This repository contains resources for the Google Earth Engine Hydro project. Ou
 - `streams.js` – derive a stream network from flow accumulation thresholds.
 - `basins.js` – generate drainage basins by propagating stream labels upstream.
 - `demfill.js` – fill DEM depressions to enforce drainage.
+- `flowlength.js` – calculate downstream flow length using D8 routing.
+- `snappourpoint.js` – snap a pour point to the highest accumulation within a radius.
+- `streamorder.js` – compute Strahler stream order for derived stream networks.
+- `basinpolygons.js` – convert basin rasters to vector catchment polygons.
 
 ## Running the example
 
