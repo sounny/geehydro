@@ -4,3 +4,4 @@ Record all changes, ideas, and relevant context here. Each agent should append a
 - Added flow accumulation script using D8 directions and AOI drawing.
 - Added watershed delineation, stream extraction, basin generation, and DEM fill scripts.
 - Added downstream flow length script using iterative D8 algorithm.
+- Added snap pour point, Strahler stream order, and basin polygon scripts; updated README.
