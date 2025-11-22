@@ -19,8 +19,17 @@ var D8Algorithm = function(dem) {
   var terrain = ee.Terrain.products(dem);
   var aspect = terrain.select('aspect');
   var directions = [1, 2, 4, 8, 16, 32, 64, 128];
-  var flowDirection = aspect.divide(45).round().mod(8);
-  return ee.Image.constant(directions).slice(flowDirection, 1).rename('flowDirection');
+  var slope = terrain.select('slope');
+  var flowDirectionIndex = aspect.divide(45).round().mod(8).toInt();
+
+  // Map the directional index (0-7) to the corresponding D8 code per pixel.
+  var flowDirection = flowDirectionIndex.remap(
+    ee.List.sequence(0, 7),
+    directions
+  ).rename('flowDirection');
+
+  // Assign 0 where there is no downhill neighbor.
+  return flowDirection.where(slope.lte(0), 0);
 };
 
 var flowDirection = D8Algorithm(elevation);
