@@ -5,3 +5,5 @@ Record all changes, ideas, and relevant context here. Each agent should append a
 - Added watershed delineation, stream extraction, basin generation, and DEM fill scripts.
 - Added downstream flow length script using iterative D8 algorithm.
 - Added snap pour point, Strahler stream order, and basin polygon scripts; updated README.
+
+- Enhanced flowacc.js UI with iteration slider, AOI centering, and safer geometry handling while keeping hydrology comments up to date.
