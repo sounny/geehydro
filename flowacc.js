@@ -1,5 +1,10 @@
 // Earth Engine flow accumulation demo using D8 flow directions
 
+// This script lets users draw an AOI and compute a simple iterative
+// flow accumulation raster from a selected DEM. The interface exposes
+// the iteration count so users can trade off speed and accuracy for
+// small or large basins.
+
 // DEM options (first band used)
 var demList = {
   'HydroSHEDS 03VFDEM': ee.Image('WWF/HydroSHEDS/03VFDEM'),
@@ -78,9 +83,17 @@ function flowAccumulation(flowDir, aoi, iterations) {
 // UI elements
 var demNames = Object.keys(demList);
 var demSelect = ui.Select({items: demNames, value: demNames[0]});
+var iterationSlider = ui.Slider({
+  min: 20,
+  max: 400,
+  step: 20,
+  value: 120,
+  style: {stretch: 'horizontal'}
+});
 var runBtn = ui.Button('Compute Flow Accumulation');
 var panel = ui.Panel([
   ui.Label('Select DEM:'), demSelect,
+  ui.Label('Iterations (higher captures longer flow paths):'), iterationSlider,
   ui.Label('Draw an AOI polygon then click the button.'),
   runBtn
 ]);
@@ -96,11 +109,14 @@ runBtn.onClick(function() {
     ui.alert('Please draw an AOI polygon.');
     return;
   }
-  var aoi = ee.Feature(layers.get(0)).geometry();
+  var layer = layers.get(0);
+  var aoi = ee.Feature(layer.getEeObject()).geometry();
   var dem = demList[demSelect.getValue()];
+  var iterations = iterationSlider.getValue();
   var fdir = D8Algorithm(dem);
-  var acc = flowAccumulation(fdir, aoi, 100);
+  var acc = flowAccumulation(fdir, aoi, iterations);
   Map.clear();
+  Map.centerObject(aoi, 10);
   Map.addLayer(acc.log10(), {min: 0, max: 5, palette: ['ffffff', '0000ff']}, 'Flow Accumulation (log10)');
   Map.addLayer(aoi, {color: 'red'}, 'AOI');
 });
