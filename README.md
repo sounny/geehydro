@@ -17,6 +17,7 @@ This repository contains resources for the Google Earth Engine Hydro project. Ou
 - `snappourpoint.js` – snap a pour point to the highest accumulation within a radius.
 - `streamorder.js` – compute Strahler stream order for derived stream networks.
 - `basinpolygons.js` – convert basin rasters to vector catchment polygons.
+- `archydro.js` – run an Arc Hydro-style end-to-end workflow (conditioning to drainage/catchment outputs).
 
 ## Running the example
 
@@ -25,3 +26,7 @@ This repository contains resources for the Google Earth Engine Hydro project. Ou
 3. Run the script to visualize the computed flow direction raster alongside the HydroSHEDS reference product.
 
 The script demonstrates how to compute flow direction from the HydroSHEDS DEM and can serve as a starting point for additional hydrology tools such as stream and watershed delineation.
+
+## Arc Hydro workflow script
+
+Use `archydro.js` in the Earth Engine Code Editor when you want a single workflow that approximates the classic Arc Hydro preprocessing chain in GEE. The script computes conditioned DEM, D8 flow direction, flow accumulation, stream extraction, stream links, Strahler order, catchment grids, drainage vectors, and catchment polygons from a user-drawn AOI.
