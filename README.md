@@ -10,6 +10,7 @@ This repository contains resources for the Google Earth Engine Hydro project. Ou
 - `poster_dem_inspector.pdf` – research poster describing early work.
 - `flowacc.js` – compute flow accumulation within a drawn AOI.
 - `watershed.js` – delineate an upstream watershed from a pour point.
+- `watershedcreator.js` – create watersheds with optional pour-point snapping and area summary.
 - `streams.js` – derive a stream network from flow accumulation thresholds.
 - `basins.js` – generate drainage basins by propagating stream labels upstream.
 - `demfill.js` – fill DEM depressions to enforce drainage.

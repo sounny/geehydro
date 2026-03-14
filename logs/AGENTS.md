@@ -7,3 +7,5 @@ Record all changes, ideas, and relevant context here. Each agent should append a
 - Added snap pour point, Strahler stream order, and basin polygon scripts; updated README.
 
 - Enhanced flowacc.js UI with iteration slider, AOI centering, and safer geometry handling while keeping hydrology comments up to date.
+
+- Added watershedcreator.js to build watersheds with optional outlet snapping, accumulation preview, and area reporting; updated README contents.
